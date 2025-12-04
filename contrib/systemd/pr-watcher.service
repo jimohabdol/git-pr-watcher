@@ -1,0 +1,27 @@
+[Unit]
+Description=GitHub PR Age Watcher
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pr-watcher
+Group=pr-watcher
+
+ExecStart=/usr/local/bin/pr-watcher -watch -interval=1h -config=/etc/pr-watcher/config.yaml
+WorkingDirectory=/etc/pr-watcher
+
+RuntimeDirectory=pr-watcher
+StateDirectory=pr-watcher
+Environment=HOME=/var/lib/pr-watcher
+
+Restart=on-failure
+RestartSec=10s
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+

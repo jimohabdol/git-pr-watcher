@@ -1,0 +1,78 @@
+# GitHub PR Age Watcher Configuration
+
+# GitHub API Configuration
+github:
+  # GitHub personal access token (required)
+  # Generate at: https://github.com/settings/tokens
+  # Required scopes: repo (for private repos) or public_repo (for public repos)
+  token: "ghp_github_token"
+  
+  # GitHub organization or username
+  owner: "org"
+  
+  # List of repositories to monitor
+  repos:
+    - "repo1"
+    - "repo2"
+    - "repo3"
+  
+  # Optional: Custom GitHub API base URL (for GitHub Enterprise)
+  # base_url: "https://github.company.com/api/v3/"
+  # upload_url: "https://github.company.com/api/uploads/"
+
+# Email Notification Configuration
+email:
+  # SMTP server configuration
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_username: "your-email@gmail.com"
+  smtp_password: "your-app-password"
+  
+  # Email addresses to send notifications to
+  to:
+    - "team-lead@company.com"
+    - "dev-team@company.com"
+  
+  # From email address
+  from: "pr-watcher@company.com"
+  
+  # Email subject prefix
+  subject: "PR Age Alert"
+  
+  # Rate limiting settings
+  rate_limit: "500ms"      # Time between emails (default: 500ms)
+  rate_timeout: "30s"      # Timeout for rate limiting (default: 30s)
+
+# Monitoring Rules
+rules:
+  # Time after which PR needs approval (default: 24h)
+  approval_time: "24h"
+  
+  # Time after which approved PR needs merge reminder (default: 48h)
+  merge_reminder_time: "48h"
+  
+  # Time after which PR should be merged (default: 72h)
+  merge_time: "72h"
+  
+  # Time after which draft PR needs attention (default: 48h)
+  draft_time: "48h"
+  
+  # How often to check PRs when in watch mode (default: 1h)
+  check_interval: "1h"
+  
+  # Email address for escalations (optional)
+  escalation_email: "manager@company.com"
+
+# Debug Configuration
+debug:
+  # Enable debug logging
+  enabled: false
+  
+  # Enable verbose logging (more detailed output)
+  verbose: false
+  
+  # Skip sending emails (useful for testing)
+  skip_emails: false
+  
+  # Number of concurrent PR checks (default: 5)
+  concurrency: 5
