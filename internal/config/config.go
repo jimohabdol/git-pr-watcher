@@ -42,6 +42,35 @@ type RulesConfig struct {
 	DraftTime         time.Duration `yaml:"draft_time"`
 	CheckInterval     time.Duration `yaml:"check_interval"`
 	EscalationEmail   string        `yaml:"escalation_email"`
+	PRSize            PRSizeConfig  `yaml:"pr_size"`
+}
+
+type PRSizeConfig struct {
+	Thresholds PRSizeThresholds `yaml:"thresholds"`
+	Times      PRSizeTimes      `yaml:"times"`
+}
+
+type PRSizeThresholds struct {
+	XS int `yaml:"xs"` // 0-50 lines
+	S  int `yaml:"s"`  // 51-200 lines
+	M  int `yaml:"m"`  // 201-500 lines
+	L  int `yaml:"l"`  // 501-1000 lines
+	XL int `yaml:"xl"` // 1000+ lines
+}
+
+type PRSizeTimes struct {
+	XS PRTimeRules `yaml:"xs"`
+	S  PRTimeRules `yaml:"s"`
+	M  PRTimeRules `yaml:"m"`
+	L  PRTimeRules `yaml:"l"`
+	XL PRTimeRules `yaml:"xl"`
+}
+
+type PRTimeRules struct {
+	ApprovalTime      time.Duration `yaml:"approval_time"`
+	MergeReminderTime time.Duration `yaml:"merge_reminder_time"`
+	MergeTime         time.Duration `yaml:"merge_time"`
+	DraftTime         time.Duration `yaml:"draft_time"`
 }
 
 type DebugConfig struct {
@@ -130,6 +159,48 @@ func setDefaults(config *Config) {
 	}
 	if config.Debug.Concurrency == 0 {
 		config.Debug.Concurrency = 5
+	}
+	setPRSizeDefaults(&config.Rules.PRSize, &config.Rules)
+}
+
+func setPRSizeDefaults(prSize *PRSizeConfig, rules *RulesConfig) {
+	if prSize.Thresholds.XS == 0 {
+		prSize.Thresholds.XS = 50
+		prSize.Thresholds.S = 200
+		prSize.Thresholds.M = 500
+		prSize.Thresholds.L = 1000
+		prSize.Thresholds.XL = 1000
+	}
+
+	if prSize.Times.XS.ApprovalTime == 0 {
+		prSize.Times.XS.ApprovalTime = rules.ApprovalTime
+		prSize.Times.XS.MergeReminderTime = rules.MergeReminderTime
+		prSize.Times.XS.MergeTime = rules.MergeTime
+		prSize.Times.XS.DraftTime = rules.DraftTime
+	}
+	if prSize.Times.S.ApprovalTime == 0 {
+		prSize.Times.S.ApprovalTime = rules.ApprovalTime
+		prSize.Times.S.MergeReminderTime = rules.MergeReminderTime
+		prSize.Times.S.MergeTime = rules.MergeTime
+		prSize.Times.S.DraftTime = rules.DraftTime
+	}
+	if prSize.Times.M.ApprovalTime == 0 {
+		prSize.Times.M.ApprovalTime = rules.ApprovalTime
+		prSize.Times.M.MergeReminderTime = rules.MergeReminderTime
+		prSize.Times.M.MergeTime = rules.MergeTime
+		prSize.Times.M.DraftTime = rules.DraftTime
+	}
+	if prSize.Times.L.ApprovalTime == 0 {
+		prSize.Times.L.ApprovalTime = rules.ApprovalTime
+		prSize.Times.L.MergeReminderTime = rules.MergeReminderTime
+		prSize.Times.L.MergeTime = rules.MergeTime
+		prSize.Times.L.DraftTime = rules.DraftTime
+	}
+	if prSize.Times.XL.ApprovalTime == 0 {
+		prSize.Times.XL.ApprovalTime = rules.ApprovalTime
+		prSize.Times.XL.MergeReminderTime = rules.MergeReminderTime
+		prSize.Times.XL.MergeTime = rules.MergeTime
+		prSize.Times.XL.DraftTime = rules.DraftTime
 	}
 }
 

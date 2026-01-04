@@ -45,6 +45,7 @@ email:
 
 # Monitoring Rules
 rules:
+  # Global time thresholds - used as defualt
   # Time after which PR needs approval (default: 24h)
   approval_time: "24h"
   
@@ -62,6 +63,45 @@ rules:
   
   # Email address for escalations (optional)
   escalation_email: "manager@company.com"
+  
+  # PR Size-based time allocation (optional)
+  # If configured, review times will vary based on PR size (XS, S, M, L, XL)
+  # If not configured, global rules above will be used for all PRs
+  pr_size:
+    thresholds:
+      xs: 50    # 0-50 lines
+      s: 200    # 51-200 lines
+      m: 500    # 201-500 lines
+      l: 1000   # 501-1000 lines
+      xl: 1000  # 1000+ lines (threshold is inclusive)
+    
+    # Time allocations for each PR size category
+    times:
+      xs:  # Extra Small PRs (0-50 lines)
+        approval_time: "1h"
+        merge_reminder_time: "2h"
+        merge_time: "4h"
+        draft_time: "24h"
+      s:   # Small PRs (51-200 lines)
+        approval_time: "2h"
+        merge_reminder_time: "4h"
+        merge_time: "6h"
+        draft_time: "48h"
+      m:   # Medium PRs (201-500 lines)
+        approval_time: "4h"
+        merge_reminder_time: "8h"
+        merge_time: "12h"
+        draft_time: "72h"
+      l:   # Large PRs (501-1000 lines)
+        approval_time: "8h"
+        merge_reminder_time: "16h"
+        merge_time: "24h"
+        draft_time: "96h"
+      xl:  # Extra Large PRs (1000+ lines)
+        approval_time: "16h"
+        merge_reminder_time: "32h"
+        merge_time: "48h"
+        draft_time: "120h"
 
 # Debug Configuration
 debug:

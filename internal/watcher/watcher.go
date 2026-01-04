@@ -48,16 +48,43 @@ func (w *PRWatcher) Close() {
 	}
 }
 
+func (w *PRWatcher) getTimeThresholds(pr *github.PullRequest) config.PRTimeRules {
+	if w.config.Rules.PRSize.Thresholds.XS == 0 {
+		return config.PRTimeRules{
+			ApprovalTime:      w.config.Rules.ApprovalTime,
+			MergeReminderTime: w.config.Rules.MergeReminderTime,
+			MergeTime:         w.config.Rules.MergeTime,
+			DraftTime:         w.config.Rules.DraftTime,
+		}
+	}
+
+	switch pr.SizeCategory {
+	case "XS":
+		return w.config.Rules.PRSize.Times.XS
+	case "S":
+		return w.config.Rules.PRSize.Times.S
+	case "M":
+		return w.config.Rules.PRSize.Times.M
+	case "L":
+		return w.config.Rules.PRSize.Times.L
+	case "XL":
+		return w.config.Rules.PRSize.Times.XL
+	default:
+		return w.config.Rules.PRSize.Times.M
+	}
+}
+
 func (w *PRWatcher) processPR(pr *github.PullRequest) *NotificationResult {
 	result := &NotificationResult{}
 	age := time.Since(pr.CreatedAt)
+	thresholds := w.getTimeThresholds(pr)
 
 	if pr.Draft {
-		if age >= w.config.Rules.DraftTime {
-			logger.Debug("Draft PR #%d is overdue (age: %v, threshold: %v)",
-				pr.Number, age, w.config.Rules.DraftTime)
+		if age >= thresholds.DraftTime {
+			logger.Debug("Draft PR #%d is overdue (age: %v, threshold: %v, size: %s)",
+				pr.Number, age, thresholds.DraftTime, pr.SizeCategory)
 
-			if err := w.notifier.SendDraftOverdue(pr, age, w.config.Rules.DraftTime); err != nil {
+			if err := w.notifier.SendDraftOverdue(pr, age, thresholds.DraftTime); err != nil {
 				logger.Error("Failed to send draft overdue notification for PR #%d: %v", pr.Number, err)
 				result.Errors = append(result.Errors, fmt.Errorf("draft overdue for PR #%d: %w", pr.Number, err))
 			} else {
@@ -68,11 +95,11 @@ func (w *PRWatcher) processPR(pr *github.PullRequest) *NotificationResult {
 		return result
 	}
 
-	if age >= w.config.Rules.MergeTime {
-		logger.Debug("PR #%d needs escalation (age: %v, threshold: %v)",
-			pr.Number, age, w.config.Rules.MergeTime)
+	if age >= thresholds.MergeTime {
+		logger.Debug("PR #%d needs escalation (age: %v, threshold: %v, size: %s)",
+			pr.Number, age, thresholds.MergeTime, pr.SizeCategory)
 
-		if err := w.notifier.SendEscalation(pr, age, w.config.Rules.MergeTime, w.config.Rules.EscalationEmail); err != nil {
+		if err := w.notifier.SendEscalation(pr, age, thresholds.MergeTime, w.config.Rules.EscalationEmail); err != nil {
 			logger.Error("Failed to send escalation for PR #%d: %v", pr.Number, err)
 			result.Errors = append(result.Errors, fmt.Errorf("escalation for PR #%d: %w", pr.Number, err))
 		} else {
@@ -83,11 +110,11 @@ func (w *PRWatcher) processPR(pr *github.PullRequest) *NotificationResult {
 	}
 
 	// PRs without sufficient approvals need approval reminder
-	if pr.ReviewCount < 2 && age >= w.config.Rules.ApprovalTime {
-		logger.Debug("PR #%d needs approval reminder (age: %v, threshold: %v, reviews: %d)",
-			pr.Number, age, w.config.Rules.ApprovalTime, pr.ReviewCount)
+	if pr.ReviewCount < 2 && age >= thresholds.ApprovalTime {
+		logger.Debug("PR #%d needs approval reminder (age: %v, threshold: %v, reviews: %d, size: %s)",
+			pr.Number, age, thresholds.ApprovalTime, pr.ReviewCount, pr.SizeCategory)
 
-		if err := w.notifier.SendApprovalReminder(pr, age, w.config.Rules.ApprovalTime); err != nil {
+		if err := w.notifier.SendApprovalReminder(pr, age, thresholds.ApprovalTime); err != nil {
 			logger.Error("Failed to send approval reminder for PR #%d: %v", pr.Number, err)
 			result.Errors = append(result.Errors, fmt.Errorf("approval reminder for PR #%d: %w", pr.Number, err))
 		} else {
@@ -98,11 +125,11 @@ func (w *PRWatcher) processPR(pr *github.PullRequest) *NotificationResult {
 	}
 
 	// PRs with sufficient approvals need merge reminder
-	if pr.ReviewCount >= 2 && age >= w.config.Rules.MergeReminderTime {
-		logger.Debug("PR #%d needs merge reminder (age: %v, threshold: %v, reviews: %d)",
-			pr.Number, age, w.config.Rules.MergeReminderTime, pr.ReviewCount)
+	if pr.ReviewCount >= 2 && age >= thresholds.MergeReminderTime {
+		logger.Debug("PR #%d needs merge reminder (age: %v, threshold: %v, reviews: %d, size: %s)",
+			pr.Number, age, thresholds.MergeReminderTime, pr.ReviewCount, pr.SizeCategory)
 
-		if err := w.notifier.SendMergeReminder(pr, age, w.config.Rules.MergeReminderTime); err != nil {
+		if err := w.notifier.SendMergeReminder(pr, age, thresholds.MergeReminderTime); err != nil {
 			logger.Error("Failed to send merge reminder for PR #%d: %v", pr.Number, err)
 			result.Errors = append(result.Errors, fmt.Errorf("merge reminder for PR #%d: %w", pr.Number, err))
 		} else {
@@ -234,6 +261,7 @@ func (w *PRWatcher) GetPRSummary() (*PRSummary, error) {
 
 	for _, pr := range prs {
 		age := now.Sub(pr.CreatedAt)
+		thresholds := w.getTimeThresholds(pr)
 
 		status := PRStatus{
 			Number:      pr.Number,
@@ -248,7 +276,7 @@ func (w *PRWatcher) GetPRSummary() (*PRSummary, error) {
 
 		if pr.Draft {
 			summary.Draft++
-			if age >= w.config.Rules.DraftTime {
+			if age >= thresholds.DraftTime {
 				status.Status = "Draft Overdue"
 			} else {
 				status.Status = "Draft"
@@ -256,10 +284,10 @@ func (w *PRWatcher) GetPRSummary() (*PRSummary, error) {
 		} else if pr.ReviewCount >= 2 {
 			summary.Approved++
 			status.Status = "Approved"
-		} else if age >= w.config.Rules.MergeTime {
+		} else if age >= thresholds.MergeTime {
 			summary.NeedsEscalation++
 			status.Status = "Needs Escalation"
-		} else if age >= w.config.Rules.ApprovalTime {
+		} else if age >= thresholds.ApprovalTime {
 			summary.NeedsApproval++
 			status.Status = "Needs Approval"
 		} else {

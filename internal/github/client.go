@@ -17,19 +17,24 @@ type Client struct {
 
 // PullRequest represents a GitHub pull request with additional metadata
 type PullRequest struct {
-	Number      int       `json:"number"`
-	Title       string    `json:"title"`
-	State       string    `json:"state"`
-	Draft       bool      `json:"draft"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	User        *User     `json:"user"`
-	Head        *Branch   `json:"head"`
-	Base        *Branch   `json:"base"`
-	URL         string    `json:"html_url"`
-	Approved    bool      `json:"approved"`
-	ReviewCount int       `json:"review_count"`
-	Repo        string    `json:"repo"`
+	Number       int       `json:"number"`
+	Title        string    `json:"title"`
+	State        string    `json:"state"`
+	Draft        bool      `json:"draft"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	User         *User     `json:"user"`
+	Head         *Branch   `json:"head"`
+	Base         *Branch   `json:"base"`
+	URL          string    `json:"html_url"`
+	Approved     bool      `json:"approved"`
+	ReviewCount  int       `json:"review_count"`
+	Repo         string    `json:"repo"`
+	Additions    int       `json:"additions"`
+	Deletions    int       `json:"deletions"`
+	TotalChanges int       `json:"total_changes"`
+	ChangedFiles int       `json:"changed_files"`
+	SizeCategory string    `json:"size_category"` // XS, S, M, L, XL
 }
 
 // User represents a GitHub user
@@ -43,6 +48,21 @@ type User struct {
 type Branch struct {
 	Ref string `json:"ref"`
 	SHA string `json:"sha"`
+}
+
+func categorizePRSize(totalChanges int) string {
+	switch {
+	case totalChanges <= 50:
+		return "XS"
+	case totalChanges <= 200:
+		return "S"
+	case totalChanges <= 500:
+		return "M"
+	case totalChanges <= 1000:
+		return "L"
+	default:
+		return "XL"
+	}
 }
 
 // NewClient creates a new GitHub client
@@ -106,6 +126,10 @@ func (c *Client) getPullRequestsForRepo(owner, repo string) ([]*PullRequest, err
 				fmt.Printf("Warning: failed to check approvals for PR #%d: %v\n", pr.GetNumber(), err)
 			}
 
+			additions := pr.GetAdditions()
+			deletions := pr.GetDeletions()
+			totalChanges := additions + deletions
+
 			prData := &PullRequest{
 				Number:    pr.GetNumber(),
 				Title:     pr.GetTitle(),
@@ -126,10 +150,15 @@ func (c *Client) getPullRequestsForRepo(owner, repo string) ([]*PullRequest, err
 					Ref: pr.Base.GetRef(),
 					SHA: pr.Base.GetSHA(),
 				},
-				URL:         pr.GetHTMLURL(),
-				Approved:    approved,
-				ReviewCount: reviewCount,
-				Repo:        repo,
+				URL:          pr.GetHTMLURL(),
+				Approved:     approved,
+				ReviewCount:  reviewCount,
+				Repo:         repo,
+				Additions:    additions,
+				Deletions:    deletions,
+				TotalChanges: totalChanges,
+				ChangedFiles: pr.GetChangedFiles(),
+				SizeCategory: categorizePRSize(totalChanges),
 			}
 
 			prs = append(prs, prData)
@@ -182,6 +211,10 @@ func (c *Client) GetPRDetails(owner, repo string, prNumber int) (*PullRequest, e
 		return nil, err
 	}
 
+	additions := pr.GetAdditions()
+	deletions := pr.GetDeletions()
+	totalChanges := additions + deletions
+
 	return &PullRequest{
 		Number:    pr.GetNumber(),
 		Title:     pr.GetTitle(),
@@ -202,9 +235,14 @@ func (c *Client) GetPRDetails(owner, repo string, prNumber int) (*PullRequest, e
 			Ref: pr.Base.GetRef(),
 			SHA: pr.Base.GetSHA(),
 		},
-		URL:         pr.GetHTMLURL(),
-		Approved:    approved,
-		ReviewCount: reviewCount,
-		Repo:        repo,
+		URL:          pr.GetHTMLURL(),
+		Approved:     approved,
+		ReviewCount:  reviewCount,
+		Repo:         repo,
+		Additions:    additions,
+		Deletions:    deletions,
+		TotalChanges: totalChanges,
+		ChangedFiles: pr.GetChangedFiles(),
+		SizeCategory: categorizePRSize(totalChanges),
 	}, nil
 }
